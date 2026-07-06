@@ -1,0 +1,235 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FallStore · content-addressed storage</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{--void:#1a1a1e;--deep:#212127;--surface:#2a2a30;--raised:#33333a;--line:rgba(232,228,219,0.08);--line2:rgba(232,228,219,0.16);--text:#e8e4db;--muted:#928d80;--dim:#6b6660;--sage:#7a9c7e;--sage-dim:rgba(122,156,126,0.14);--amber:#d4a052;--amber-dim:rgba(212,160,82,0.12);--coral:#d67a5a;--coral-glow:rgba(214,122,90,0.15);--serif:'Cormorant Garamond','Iowan Old Style',Georgia,serif;--sans:'Inter',-apple-system,system-ui,sans-serif;--mono:'JetBrains Mono','IBM Plex Mono',monospace}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--void);color:var(--text);font-family:var(--sans);font-size:15.5px;line-height:1.65;-webkit-font-smoothing:antialiased;min-height:100vh}
+button{cursor:pointer;font:inherit;border:none;background:transparent;color:inherit}
+input,textarea{font-family:inherit;background:transparent;color:var(--text);border:none;outline:none;width:100%}
+a{color:var(--sage);text-decoration:none}
+h1,h2,h3{font-family:var(--serif);font-weight:400;color:var(--text);line-height:1.2}
+h1{font-size:44px;margin-bottom:6px}
+h1 em{color:var(--sage);font-style:italic}
+h2{font-size:22px;color:var(--text);margin-bottom:10px}
+h2 em{color:var(--sage);font-style:italic}
+h3{font-size:12px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.16em;font-family:var(--mono);font-weight:500}
+.topbar{background:rgba(26,26,30,0.95);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-size:22px}
+.brand .glyph{color:var(--sage);font-size:26px}
+.brand .co{color:var(--dim);font-family:var(--mono);font-size:9.5px;letter-spacing:0.16em;margin-left:6px;text-transform:uppercase}
+.topbar .meta{font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;color:var(--muted);text-transform:uppercase}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+.lede{color:var(--muted);font-size:17px;max-width:640px;margin-bottom:36px;font-family:var(--serif);font-style:italic}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.card{background:var(--deep);border:1px solid var(--line);border-radius:14px;padding:22px 24px}
+.card.drop{border:1.5px dashed var(--line2);text-align:center;padding:38px 22px;transition:all .15s}
+.card.drop.hot{border-color:var(--sage);background:var(--sage-dim)}
+.card.drop p{color:var(--muted);margin-top:8px;font-size:14px}
+.btn{background:var(--sage);color:var(--void);padding:10px 18px;border-radius:8px;font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;font-weight:700;transition:all .15s}
+.btn:hover{background:#8db091}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line2)}
+.btn.ghost:hover{border-color:var(--sage);color:var(--sage)}
+.btn.amber{background:var(--amber);color:var(--void)}
+.btn.coral{background:var(--coral);color:var(--void)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.field{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-family:var(--mono);font-size:12.5px;flex:1;min-width:220px}
+.pill{display:inline-block;padding:3px 8px;border-radius:12px;font-family:var(--mono);font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase}
+.pill.sage{background:var(--sage-dim);color:var(--sage)}
+.pill.amber{background:var(--amber-dim);color:var(--amber)}
+.pill.dim{background:var(--surface);color:var(--muted)}
+.cid{font-family:var(--mono);font-size:11px;color:var(--sage);word-break:break-all;display:inline-block;padding:4px 8px;background:var(--surface);border-radius:6px;cursor:pointer}
+.cid:hover{background:var(--raised)}
+.tbl{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.tbl th,.tbl td{padding:9px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl th{color:var(--muted);font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.12em;font-weight:500}
+.tbl td .act{display:flex;gap:6px}
+.tbl td .mini{padding:5px 9px;border-radius:6px;font-size:9.5px;font-family:var(--mono);letter-spacing:0.1em;text-transform:uppercase;border:1px solid var(--line2);color:var(--muted)}
+.tbl td .mini:hover{border-color:var(--sage);color:var(--sage)}
+.stats{display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.08em;margin-top:10px}
+.stats strong{color:var(--text);font-weight:500}
+.bar{height:6px;background:var(--surface);border-radius:3px;overflow:hidden;margin-top:8px}
+.bar span{display:block;height:100%;background:var(--sage);transition:width .3s}
+.log{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border-radius:8px;padding:12px 14px;max-height:120px;overflow-y:auto;margin-top:12px}
+.log div{padding:2px 0;border-bottom:1px dotted var(--line)}
+.log .ok{color:var(--sage)}
+.log .warn{color:var(--amber)}
+.foot{color:var(--dim);font-family:var(--mono);font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;text-align:center;margin-top:60px}
+.verify-out{margin-top:10px;padding:10px 12px;border-radius:8px;font-family:var(--mono);font-size:12px;display:none}
+.verify-out.ok{background:var(--sage-dim);color:var(--sage);display:block}
+.verify-out.bad{background:var(--coral-glow);color:var(--coral);display:block}
+label.small{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;display:block;margin-bottom:6px}
+</style>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="glyph">◊</span><span>FallStore</span><span class="co">AI-Native Solutions</span>
+  </div>
+  <div class="meta">v1 · content-addressed · SHA-256</div>
+</div>
+
+<div class="wrap">
+  <h1>Store by <em>hash</em>, not by name.</h1>
+  <p class="lede">IPFS-lite in one file. Bytes go in, a content-ID comes out. If the hash matches, the file is authentic — no matter who sent it or from where.</p>
+
+  <div class="grid">
+    <div class="card drop" id="drop">
+      <h3>Drop or choose file</h3>
+      <input type="file" id="picker" multiple style="display:none">
+      <button class="btn" onclick="document.getElementById('picker').click()">Choose files</button>
+      <p>or drop them here · hashes locally, stores in IndexedDB</p>
+    </div>
+    <div class="card">
+      <h3>Retrieve by CID</h3>
+      <div class="row" style="margin-bottom:10px">
+        <input class="field" id="cidGet" placeholder="sha256:...">
+        <button class="btn" onclick="doRetrieve()">Get</button>
+      </div>
+      <div id="getOut" style="font-family:var(--mono);font-size:12px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h3>Verify hash of a file</h3>
+    <div class="row">
+      <input class="field" id="cidVer" placeholder="sha256:... (paste expected CID)">
+      <input type="file" id="verFile">
+      <button class="btn ghost" onclick="doVerify()">Verify</button>
+    </div>
+    <div class="verify-out" id="verOut"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:18px">
+    <h3>Stored blobs</h3>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn ghost" onclick="refresh()">Refresh</button>
+      <button class="btn ghost" onclick="doGC()">GC unpinned &gt;1h</button>
+      <span class="pill dim" id="count">0 blobs</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl" id="tbl">
+        <thead><tr><th>CID</th><th>Size</th><th>Stored</th><th>Pin</th><th></th></tr></thead>
+        <tbody id="tbody"><tr><td colspan="5" style="color:var(--dim);padding:18px 4px">no blobs yet — drop a file above</td></tr></tbody>
+      </table>
+    </div>
+    <div class="stats">
+      <span>Estate usage <strong id="use">–</strong></span>
+      <span>Quota <strong id="quo">–</strong></span>
+    </div>
+    <div class="bar"><span id="barfill" style="width:0%"></span></div>
+  </div>
+
+  <div class="card">
+    <h3>Event log</h3>
+    <div class="log" id="log"><div>ready · listening for events</div></div>
+  </div>
+
+  <p class="foot">◊ · FallStore · MIT · sjgant80-hub/fallstore</p>
+</div>
+
+<script type="module">
+import FS, { onProgress } from './fallstore.js';
+window.FS = FS;
+
+const $ = id => document.getElementById(id);
+const log = (msg, cls='') => {
+  const el = document.createElement('div');
+  el.textContent = new Date().toISOString().slice(11,19) + ' · ' + msg;
+  if (cls) el.className = cls;
+  $('log').prepend(el);
+};
+
+onProgress(evt => {
+  if (evt.type === 'store-end') log(`stored ${evt.cid.slice(0,20)}… (${fmt(evt.size)})`, 'ok');
+  else if (evt.type === 'store-skip') log(`skip · already have ${evt.cid.slice(0,20)}…`, 'warn');
+  else if (evt.type === 'gc') log(`gc · freed ${evt.freed} blob(s)`, 'ok');
+  else if (evt.type === 'remove') log(`removed ${evt.cid.slice(0,20)}…`);
+  else if (evt.type === 'pin') log(`pinned ${evt.cid.slice(0,20)}…`, 'ok');
+  else if (evt.type === 'unpin') log(`unpinned ${evt.cid.slice(0,20)}…`);
+});
+
+const drop = $('drop');
+['dragenter','dragover'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add('hot'); }));
+['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove('hot'); }));
+drop.addEventListener('drop', ev => handleFiles(ev.dataTransfer.files));
+$('picker').addEventListener('change', e => handleFiles(e.target.files));
+
+async function handleFiles(files){
+  for (const f of files){
+    log(`hashing ${f.name} (${fmt(f.size)})…`);
+    const cid = await FS.store(f);
+    log(`→ ${cid}`, 'ok');
+  }
+  refresh();
+}
+
+window.doRetrieve = async () => {
+  const cid = $('cidGet').value.trim();
+  if (!cid) return;
+  const bytes = await FS.retrieve(cid);
+  if (!bytes){ $('getOut').innerHTML = '<span style="color:var(--coral)">not found</span>'; return; }
+  const blob = new Blob([bytes]);
+  const url = URL.createObjectURL(blob);
+  $('getOut').innerHTML = `<span class="pill sage">${fmt(bytes.byteLength)}</span> <a href="${url}" download="${cid.replace(':','-')}.bin">download</a>`;
+  log(`retrieved ${cid.slice(0,20)}… (${fmt(bytes.byteLength)})`, 'ok');
+};
+
+window.doVerify = async () => {
+  const cid = $('cidVer').value.trim();
+  const f = $('verFile').files[0];
+  const out = $('verOut');
+  if (!cid || !f){ out.className = 'verify-out bad'; out.textContent = 'need both a CID and a file'; return; }
+  const ok = await FS.verify(cid, f);
+  out.className = 'verify-out ' + (ok ? 'ok' : 'bad');
+  out.textContent = ok ? `✓ authentic · ${f.name} matches ${cid.slice(0,28)}…` : `✗ mismatch · file does NOT match ${cid.slice(0,28)}…`;
+  log(`verify ${ok ? 'ok' : 'FAIL'} · ${f.name}`, ok ? 'ok' : 'warn');
+};
+
+window.doGC = async () => {
+  const freed = await FS.gc(60 * 60 * 1000);
+  log(`gc ran · freed ${freed} unpinned blob(s)`, freed ? 'ok' : '');
+  refresh();
+};
+
+window.refresh = async () => {
+  const items = await FS.list();
+  items.sort((a,b) => b.storedAt - a.storedAt);
+  $('count').textContent = `${items.length} blob${items.length === 1 ? '' : 's'}`;
+  const tb = $('tbody');
+  if (!items.length){ tb.innerHTML = '<tr><td colspan="5" style="color:var(--dim);padding:18px 4px">no blobs yet — drop a file above</td></tr>'; }
+  else {
+    tb.innerHTML = items.map(it => `
+      <tr>
+        <td><span class="cid" onclick="navigator.clipboard.writeText('${it.cid}'); this.textContent='copied';setTimeout(()=>this.textContent='${it.cid}',900)">${it.cid}</span></td>
+        <td style="font-family:var(--mono);font-size:11.5px">${fmt(it.size)}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${new Date(it.storedAt).toISOString().slice(0,16).replace('T',' ')}</td>
+        <td>${it.pinned ? '<span class="pill amber">pinned</span>' : '<span class="pill dim">—</span>'}</td>
+        <td><div class="act">
+          <button class="mini" onclick="dl('${it.cid}')">get</button>
+          <button class="mini" onclick="tog('${it.cid}',${it.pinned})">${it.pinned ? 'unpin' : 'pin'}</button>
+          <button class="mini" onclick="del('${it.cid}')">del</button>
+        </div></td>
+      </tr>`).join('');
+  }
+  const q = await FS.quota();
+  $('use').textContent = fmt(q.usage);
+  $('quo').textContent = q.quota ? fmt(q.quota) : '?';
+  $('barfill').style.width = q.quota ? Math.min(100, (q.usage/q.quota)*100) + '%' : '0%';
+};
+
+window.dl = async cid => { $('cidGet').value = cid; await doRetrieve(); };
+window.tog = async (cid, pinned) => { await (pinned ? FS.unpin(cid) : FS.pin(cid)); refresh(); };
+window.del = async cid => { await FS.remove(cid); refresh(); };
+
+function fmt(n){
+  if (!n) return '0 B';
+  const u = ['B','KB','MB','GB','TB']; let i = 0;
+  while (n >= 1024 && i < u.length-1){ n /= 1024; i++; }
+  return n.toFixed(n >= 10 || i === 0 ? 0 : 1) + ' ' + u[i];
+}
+
+refresh();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>

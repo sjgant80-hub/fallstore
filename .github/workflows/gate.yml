@@ -27,7 +27,7 @@ jobs:
             const s=fs.readFileSync(f,'utf8');
 
             // 1. every inline script must parse. A syntax error means the page loads and does nothing.
-            const blocks=[...s.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application[^>]*json)[^>]*>([\s\S]*?)<\/script>/g)];
+            const blocks=[...s.matchAll(/<script(?![^>]*\bsrc=)(?![^>]*application[^>]*json)(?![^>]*importmap)[^>]*>([\s\S]*?)<\/script>/g)];
             blocks.forEach((m,i)=>{
               try { new (require('vm').Script)(m[1].replace(/^\s*import\s.*$/gm,'').replace(/^\s*export\s/gm,'')); }
               catch(e){ if(!/await is only valid|Unexpected token 'export'|Cannot use import/.test(e.message)){ console.error(f+' script['+i+'] DOES NOT PARSE: '+e.message); fail=1; } }
@@ -40,7 +40,7 @@ jobs:
             // 3. a same-repo link that points at nothing is a dead control.
             for(const m of s.matchAll(/(?:href|src)=\"(?!https?:|data:|mailto:|#|\/\/)([^\"?#]+)/g)){
               const t=m[1].replace(/^\.\//,'');
-              if(t && !fs.existsSync(t)){ console.error(f+' links to a file that is not here: '+t); fail=1; }
+              /* a link a script fills in at run time (a template or a regex back-reference), or an ellipsis in example text, is not a file */ if(t && !/\x24[{0-9]/.test(t) && t !== '...' && !fs.existsSync(t)){ console.error(f+' links to a file that is not here: '+t); fail=1; }
             }
           }
 
